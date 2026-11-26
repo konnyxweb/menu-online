@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ settings.restaurant_name }} — Menú Digital</title>
+  <meta name="description" content="Catálogo digital oficial de {{ settings.restaurant_name }}. {{ settings.tagline }}">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Outfit', 'sans-serif'],
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            ocean: '#0369a1',
+            navy: '#0f172a',
+            sand: '#fafaf9',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-sand text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- ============ ENCABEZADO DEL RESTAURANTE ============ -->
+  <header class="bg-navy text-white relative overflow-hidden">
+    <div class="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-sky-500/20 blur-3xl pointer-events-none"></div>
+    <div class="max-w-4xl mx-auto px-5 py-8 sm:py-10 relative z-10">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+        <div class="flex items-center gap-4">
+          {% if settings.logo_path %}
+          <img src="{{ settings.logo_path }}" alt="{{ settings.restaurant_name }}"
+               class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover bg-white p-1 shadow-lg shrink-0">
+          {% else %}
+          <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-300 text-2xl shrink-0">
+            <i class="fa-solid fa-utensils"></i>
+          </div>
+          {% endif %}
+          <div>
+            <h1 class="font-display text-2xl sm:text-4xl font-extrabold tracking-tight text-white">
+              {{ settings.restaurant_name }}
+            </h1>
+            {% if settings.tagline %}
+            <p class="text-sky-300 text-sm sm:text-base font-medium mt-0.5">{{ settings.tagline }}</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 self-start sm:self-center">
+          {% if settings.whatsapp %}
+          <a href="https://wa.me/{{ settings.whatsapp | replace('+', '') | replace(' ', '') | replace('-', '') }}" target="_blank" rel="noopener"
+             class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs sm:text-sm font-bold shadow transition">
+            <i class="fa-brands fa-whatsapp text-base"></i> Pedir / Consultar
+          </a>
+          {% endif %}
+          <a href="/admin" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-semibold transition" title="Panel de Administración">
+            <i class="fa-solid fa-lock text-[11px]"></i> Admin
+          </a>
+        </div>
+      </div>
+
+      <!-- Datos de contacto del local -->
+      <div class="mt-5 pt-4 border-t border-white/10 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-300">
+        {% if settings.phone %}
+        <span class="inline-flex items-center gap-1.5"><i class="fa-solid fa-phone text-sky-400"></i> {{ settings.phone }}</span>
+        {% endif %}
+        {% if settings.address %}
+        <span class="inline-flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-sky-400"></i> {{ settings.address }}</span>
+        {% endif %}
+        {% if settings.hours %}
+        <span class="inline-flex items-center gap-1.5"><i class="fa-regular fa-clock text-sky-400"></i> {{ settings.hours }}</span>
+        {% endif %}
+        {% if settings.instagram %}
+        <span class="inline-flex items-center gap-1.5"><i class="fa-brands fa-instagram text-sky-400"></i> {{ settings.instagram }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ BARRA DE BÚSQUEDA Y RUBROS (STICKY) ============ -->
+  <div class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+    <div class="max-w-4xl mx-auto px-5 py-3 space-y-3">
+      <!-- Buscador -->
+      <div class="relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+        <input type="text" id="menu-search" oninput="filterMenu()"
+               placeholder="Buscar plato, ingrediente o bebida..."
+               class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-100 border border-transparent focus:bg-white focus:border-ocean focus:outline-none text-sm transition">
+      </div>
+
+      <!-- Píldoras de Rubros / Categorías -->
+      {% if menu %}
+      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
+        <button type="button" onclick="selectCategory('all', this)"
+                class="cat-pill active px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-navy text-white transition">
+          Todos
+        </button>
+        {% for cat in menu %}
+        <button type="button" onclick="selectCategory('cat-{{ cat.id }}', this)"
+                class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
+          {{ cat.name }}
+        </button>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ============ LISTADO DEL MENÚ POR RUBROS ============ -->
+  <main class="max-w-4xl w-full mx-auto px-5 py-8 flex-1 space-y-10">
+    {% if menu %}
+      {% for cat in menu %}
+      <section class="menu-category-section" id="cat-{{ cat.id }}" data-cat-id="cat-{{ cat.id }}">
+        <div class="border-b-2 border-ocean/80 pb-2 mb-5">
+          <h2 class="font-display text-xl sm:text-2xl font-extrabold text-navy tracking-tight">
+            {{ cat.name }}
+          </h2>
+          {% if cat.description %}
+          <p class="text-xs sm:text-sm text-slate-500 mt-0.5">{{ cat.description }}</p>
+          {% endif %}
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {% for p in cat.products %}
+          <article class="menu-item-card bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-sky-200 transition flex flex-col justify-between gap-2"
+                   data-search="{{ (p.name ~ ' ' ~ p.description ~ ' ' ~ cat.name) | lower }}">
+            <div class="flex justify-between items-start gap-3">
+              <h3 class="font-display font-bold text-base sm:text-lg text-navy leading-snug">
+                {{ p.name }}
+              </h3>
+              <span class="font-display font-extrabold text-base sm:text-lg text-ocean bg-sky-50 px-2.5 py-0.5 rounded-lg whitespace-nowrap shrink-0">
+                {{ settings.currency_symbol }}{{ "%.2f"|format(p.price) }}
+              </span>
+            </div>
+            {% if p.description %}
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              {{ p.description }}
+            </p>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endfor %}
+
+      <div id="empty-search-msg" class="hidden text-center py-14">
+        <i class="fa-solid fa-plate-wheat text-4xl text-slate-300 mb-3"></i>
+        <p class="text-slate-600 font-semibold">No encontramos platos con esa búsqueda.</p>
+      </div>
+    {% else %}
+      <div class="text-center py-16 bg-white rounded-3xl border border-slate-200 p-8">
+        <i class="fa-solid fa-utensils text-4xl text-slate-300 mb-3"></i>
+        <h2 class="font-display text-xl font-bold text-navy">Menú en preparación</h2>
+        <p class="text-sm text-slate-500 mt-1">Pronto publicaremos nuestros platos disponibles.</p>
+      </div>
+    {% endif %}
+  </main>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="bg-white border-t border-slate-200 mt-auto">
+    <div class="max-w-4xl mx-auto px-5 py-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500">
+      <p class="font-semibold text-slate-700">{{ settings.restaurant_name }} · Carta Digital</p>
+      <p>Precios expresados en {{ settings.currency_symbol }} · {{ settings.phone }}</p>
+    </div>
+  </footer>
+
+  <script>
+    let activeCat = 'all';
+
+    function selectCategory(catId, btnEl) {
+      activeCat = catId;
+      document.querySelectorAll('.cat-pill').forEach(b => {
+        b.classList.remove('bg-navy', 'text-white');
+        b.classList.add('bg-slate-100', 'text-slate-600');
+      });
+      if (btnEl) {
+        btnEl.classList.remove('bg-slate-100', 'text-slate-600');
+        btnEl.classList.add('bg-navy', 'text-white');
+      }
+      filterMenu();
+    }
+
+    function filterMenu() {
+      const q = (document.getElementById('menu-search').value || '').toLowerCase().trim();
+      let totalVisible = 0;
+
+      document.querySelectorAll('.menu-category-section').forEach(sec => {
+        const matchesCat = (activeCat === 'all' || sec.dataset.catId === activeCat);
+        if (!matchesCat) {
+          sec.style.display = 'none';
+          return;
+        }
+
+        let secVisible = 0;
+        sec.querySelectorAll('.menu-item-card').forEach(card => {
+          const text = card.dataset.search || '';
+          const show = !q || text.includes(q);
+          card.style.display = show ? '' : 'none';
+          if (show) {
+            secVisible++;
+            totalVisible++;
+          }
+        });
+
+        sec.style.display = secVisible > 0 ? '' : 'none';
+      });
+
+      const emptyMsg = document.getElementById('empty-search-msg');
+      if (emptyMsg) emptyMsg.classList.toggle('hidden', totalVisible > 0);
+    }
+  </script>
+</body>
+</html>

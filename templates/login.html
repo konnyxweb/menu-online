@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acceso Admin — {{ settings.restaurant_name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-5 font-sans">
+  <div class="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 p-8">
+    <div class="flex flex-col items-center text-center mb-6">
+      <div class="w-14 h-14 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center text-2xl mb-3">
+        <i class="fa-solid fa-lock"></i>
+      </div>
+      <h1 class="font-bold text-2xl text-slate-900" style="font-family: 'Outfit', sans-serif;">Panel de Administración</h1>
+      <p class="text-sm text-slate-500 mt-1">{{ settings.restaurant_name }} · Gestión de Menú Online</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold text-center">
+            {{ msg }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="/login" class="space-y-4">
+      <div>
+        <label for="password" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Contraseña de acceso</label>
+        <input type="password" id="password" name="password" required autofocus
+               placeholder="Ingresa tu contraseña..."
+               class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-sky-600 focus:outline-none text-sm">
+      </div>
+      <button type="submit"
+              class="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-lg transition">
+        <i class="fa-solid fa-right-to-bracket mr-1.5"></i> Entrar al Panel
+      </button>
+    </form>
+
+    <div class="mt-6 pt-5 border-t border-slate-100 flex justify-between items-center text-xs text-slate-400">
+      <a href="/" class="hover:text-sky-700 font-semibold"><i class="fa-solid fa-arrow-left mr-1"></i> Volver al Menú Público</a>
+      <span>Clave inicial: <code class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">admin123</code></span>
+    </div>
+  </div>
+</body>
+</html>

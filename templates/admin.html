@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Admin — {{ settings.restaurant_name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen">
+
+  <!-- TOAST -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-sm font-semibold translate-y-24 opacity-0 transition-all duration-300 pointer-events-none">
+    <i class="fa-solid fa-circle-check text-emerald-400"></i>
+    <span id="toast-msg">Guardado</span>
+  </div>
+
+  <!-- HEADER -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-5 py-3.5 flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-utensils"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg text-slate-900 leading-tight" style="font-family: 'Outfit', sans-serif;">
+            Menú Online — Administración
+          </h1>
+          <p class="text-xs text-slate-500">{{ settings.restaurant_name }}</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2.5">
+        <a href="/api/menu/pdf" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-bold shadow transition">
+          <i class="fa-solid fa-file-pdf"></i> Descargar Menú PDF (Imprimir)
+        </a>
+        <a href="/" target="_blank" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold transition">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> Ver Menú Público
+        </a>
+        <a href="/logout" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 text-xs sm:text-sm font-semibold transition" title="Cerrar Sesión">
+          <i class="fa-solid fa-right-from-bracket"></i> Salir
+        </a>
+      </div>
+    </div>
+
+    <!-- NAVEGACIÓN PESTAÑAS -->
+    <div class="max-w-7xl mx-auto px-5 flex gap-2 border-t border-slate-100 overflow-x-auto">
+      <button type="button" onclick="switchTab('productos')" id="tab-btn-productos"
+              class="tab-btn px-4 py-3 text-xs sm:text-sm font-bold border-b-2 border-sky-600 text-sky-700 whitespace-nowrap">
+        <i class="fa-solid fa-bowl-food mr-1.5"></i> Productos & Precios (<span id="count-products">{{ products | length }}</span>)
+      </button>
+      <button type="button" onclick="switchTab('rubros')" id="tab-btn-rubros"
+              class="tab-btn px-4 py-3 text-xs sm:text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap">
+        <i class="fa-solid fa-layer-group mr-1.5"></i> Rubros / Categorías (<span id="count-categories">{{ categories | length }}</span>)
+      </button>
+      <button type="button" onclick="switchTab('config')" id="tab-btn-config"
+              class="tab-btn px-4 py-3 text-xs sm:text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap">
+        <i class="fa-solid fa-gear mr-1.5"></i> Negocio, Logo & Código QR
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-5 py-6">
+
+    <!-- ==================== TAB 1: PRODUCTOS & PRECIOS ==================== -->
+    <section id="tab-productos" class="space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap justify-between items-center gap-3 shadow-sm">
+        <div class="flex flex-wrap items-center gap-3 flex-1 min-w-[260px]">
+          <div class="relative flex-1 max-w-xs">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="text" id="admin-prod-search" oninput="renderProductsTable()" placeholder="Buscar producto..."
+                   class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm focus:border-sky-600 focus:outline-none">
+          </div>
+          <select id="admin-cat-filter" onchange="renderProductsTable()"
+                  class="px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 focus:border-sky-600 focus:outline-none">
+            <option value="all">Todos los rubros</option>
+          </select>
+        </div>
+
+        <button type="button" onclick="openProductModal()"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold shadow transition">
+          <i class="fa-solid fa-plus"></i> Agregar Producto
+        </button>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold">
+              <th class="py-3 px-4">Rubro</th>
+              <th class="py-3 px-4">Producto & Descripción</th>
+              <th class="py-3 px-4 w-40">Precio ({{ settings.currency_symbol }})</th>
+              <th class="py-3 px-4 text-center w-24">Visible</th>
+              <th class="py-3 px-4 text-center w-28">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="products-tbody" class="divide-y divide-slate-100">
+            <!-- Renderizado dinámico JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: RUBROS / CATEGORÍAS ==================== -->
+    <section id="tab-rubros" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 flex justify-between items-center shadow-sm">
+        <div>
+          <h2 class="font-bold text-slate-900 text-base">Gestión de Rubros del Menú</h2>
+          <p class="text-xs text-slate-500">Crea nuevas secciones en cualquier momento (ej. Comida Rápida, Bebidas, Postres).</p>
+        </div>
+        <button type="button" onclick="openCategoryModal()"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold shadow transition">
+          <i class="fa-solid fa-folder-plus"></i> Nuevo Rubro
+        </button>
+      </div>
+
+      <div id="categories-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Renderizado dinámico JS -->
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: DATOS DEL NEGOCIO, LOGO & QR ==================== -->
+    <section id="tab-config" class="hidden">
+      <form id="settings-form" onsubmit="saveSettings(event)" enctype="multipart/form-data"
+            class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6 max-w-4xl">
+        <div class="border-b border-slate-100 pb-4">
+          <h2 class="font-bold text-lg text-slate-900">Datos del Restaurante, Logo y Código QR</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Esta información aparece en el encabezado de tu menú digital y en el PDF listo para imprimir.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Nombre del Restaurante *</label>
+            <input type="text" name="restaurant_name" value="{{ settings.restaurant_name }}" required
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Eslogan / Subtítulo</label>
+            <input type="text" name="tagline" value="{{ settings.tagline }}"
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Teléfono(s) de Contacto</label>
+            <input type="text" name="phone" value="{{ settings.phone }}"
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">WhatsApp (para botón de pedidos)</label>
+            <input type="text" name="whatsapp" value="{{ settings.whatsapp }}" placeholder="Ej. 584141234567"
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Dirección del Local</label>
+            <input type="text" name="address" value="{{ settings.address }}"
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Horario de Atención</label>
+            <input type="text" name="hours" value="{{ settings.hours }}"
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Instagram / Red Social</label>
+            <input type="text" name="instagram" value="{{ settings.instagram }}"
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Símbolo Moneda</label>
+              <input type="text" name="currency_symbol" value="{{ settings.currency_symbol }}" placeholder="$"
+                     class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Clave del Admin</label>
+              <input type="text" name="admin_password" value="{{ settings.admin_password }}" required
+                     class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- Logo y QR -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+          <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+            <label class="block text-xs font-bold uppercase text-slate-700">Logo del Restaurante (Encabezado y PDF)</label>
+            {% if settings.logo_path %}
+            <div class="flex items-center gap-3">
+              <img src="{{ settings.logo_path }}" alt="Logo actual" class="w-16 h-16 rounded-xl object-cover bg-white border border-slate-200 p-1">
+              <span class="text-xs text-slate-500">Logo actual cargado</span>
+            </div>
+            {% endif %}
+            <input type="file" name="logo_file" accept=".png,.jpg,.jpeg,.webp"
+                   class="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100">
+          </div>
+
+          <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+            <label class="block text-xs font-bold uppercase text-slate-700">URL Pública para Código QR del PDF</label>
+            <input type="url" name="public_url" value="{{ settings.public_url or default_public_url }}"
+                   placeholder="https://turestaurante.com/"
+                   class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:border-sky-600 focus:outline-none bg-white">
+            <p class="text-[11px] text-slate-500">El PDF genera automáticamente un QR hacia esta dirección. Opcionalmente puedes subir una imagen QR propia:</p>
+            <input type="file" name="qr_file" accept=".png,.jpg,.jpeg,.webp"
+                   class="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:font-semibold file:bg-slate-200 file:text-slate-700">
+            {% if settings.qr_custom_path %}
+            <label class="inline-flex items-center gap-1.5 text-xs text-red-600 font-semibold cursor-pointer">
+              <input type="checkbox" name="clear_custom_qr" value="1"> Volver a usar QR generado automáticamente
+            </label>
+            {% endif %}
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Texto de cierre junto al QR en el PDF</label>
+          <input type="text" name="pdf_footer_note" value="{{ settings.pdf_footer_note }}"
+                 class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+        </div>
+
+        <div class="flex justify-end pt-2">
+          <button type="submit" class="px-6 py-3 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-bold text-sm shadow transition">
+            <i class="fa-solid fa-floppy-disk mr-1.5"></i> Guardar Configuración
+          </button>
+        </div>
+      </form>
+    </section>
+
+  </main>
+
+  <!-- ==================== MODAL PRODUCTO ==================== -->
+  <div id="modal-product" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200">
+      <div class="flex justify-between items-center mb-5">
+        <h3 id="modal-prod-title" class="font-bold text-lg text-slate-900">Agregar Producto</h3>
+        <button type="button" onclick="closeModal('modal-product')" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+      </div>
+      <form onsubmit="saveProductForm(event)" class="space-y-4">
+        <input type="hidden" id="prod-id">
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Rubro / Categoría *</label>
+          <select id="prod-cat" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none"></select>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Nombre del Producto *</label>
+            <input type="text" id="prod-name" required placeholder="Ej. Ceviche Mixto"
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Precio ({{ settings.currency_symbol }}) *</label>
+            <input type="number" step="0.01" min="0" id="prod-price" required value="0.00"
+                   class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold focus:border-sky-600 focus:outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Descripción</label>
+          <textarea id="prod-desc" rows="3" placeholder="Ingredientes, presentación o acompañantes..."
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none"></textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-3">
+          <button type="button" onclick="closeModal('modal-product')" class="px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-600">Cancelar</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold">Guardar Producto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL RUBRO ==================== -->
+  <div id="modal-category" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200">
+      <div class="flex justify-between items-center mb-5">
+        <h3 id="modal-cat-title" class="font-bold text-lg text-slate-900">Nuevo Rubro</h3>
+        <button type="button" onclick="closeModal('modal-category')" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+      </div>
+      <form onsubmit="saveCategoryForm(event)" class="space-y-4">
+        <input type="hidden" id="cat-id">
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Nombre del Rubro *</label>
+          <input type="text" id="cat-name" required placeholder="Ej. Comida Rápida, Bebidas..."
+                 class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Descripción / Subtítulo (Opcional)</label>
+          <textarea id="cat-desc" rows="2" placeholder="Ej. Hamburguesas artesanales y perros calientes..."
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-sky-600 focus:outline-none"></textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-3">
+          <button type="button" onclick="closeModal('modal-category')" class="px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-600">Cancelar</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold">Guardar Rubro</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let CATEGORIES = {{ categories | tojson }};
+    let PRODUCTS = {{ products | tojson }};
+    const CURRENCY = {{ settings.currency_symbol | tojson }};
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg;
+      t.classList.remove('translate-y-24', 'opacity-0');
+      setTimeout(() => t.classList.add('translate-y-24', 'opacity-0'), 2800);
+    }
+
+    function switchTab(tab) {
+      ['productos', 'rubros', 'config'].forEach(name => {
+        document.getElementById(`tab-${name}`).classList.toggle('hidden', name !== tab);
+        const btn = document.getElementById(`tab-btn-${name}`);
+        btn.classList.toggle('border-sky-600', name === tab);
+        btn.classList.toggle('text-sky-700', name === tab);
+        btn.classList.toggle('border-transparent', name !== tab);
+        btn.classList.toggle('text-slate-500', name !== tab);
+      });
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function syncCategorySelects() {
+      const filterSel = document.getElementById('admin-cat-filter');
+      const modalSel = document.getElementById('prod-cat');
+      const currFilter = filterSel.value;
+
+      filterSel.innerHTML = '<option value="all">Todos los rubros</option>' +
+        CATEGORIES.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+      if (currFilter) filterSel.value = currFilter;
+
+      modalSel.innerHTML = CATEGORIES.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+      document.getElementById('count-categories').textContent = CATEGORIES.length;
+      document.getElementById('count-products').textContent = PRODUCTS.length;
+    }
+
+    function renderProductsTable() {
+      const tbody = document.getElementById('products-tbody');
+      const q = (document.getElementById('admin-prod-search').value || '').toLowerCase().trim();
+      const catFilter = document.getElementById('admin-cat-filter').value;
+
+      const filtered = PRODUCTS.filter(p => {
+        const matchCat = (catFilter === 'all' || String(p.category_id) === String(catFilter));
+        const matchQ = !q || (p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q));
+        return matchCat && matchQ;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-10 text-center text-slate-400">No hay productos registrados en esta vista.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(p => `
+        <tr class="hover:bg-slate-50/70 transition">
+          <td class="py-3 px-4">
+            <span class="inline-block px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 font-bold text-xs whitespace-nowrap">${escapeHtml(p.category_name)}</span>
+          </td>
+          <td class="py-3 px-4">
+            <div class="font-bold text-slate-900">${escapeHtml(p.name)}</div>
+            <div class="text-xs text-slate-500 line-clamp-2">${escapeHtml(p.description)}</div>
+          </td>
+          <td class="py-3 px-4">
+            <div class="flex items-center gap-1">
+              <span class="font-bold text-slate-400 text-xs">${escapeHtml(CURRENCY)}</span>
+              <input type="number" step="0.01" min="0" value="${Number(p.price).toFixed(2)}"
+                     onchange="quickUpdatePrice(${p.id}, this.value)"
+                     class="w-24 px-2.5 py-1.5 rounded-lg border border-slate-200 font-bold text-slate-900 text-sm focus:border-sky-600 focus:outline-none">
+            </div>
+          </td>
+          <td class="py-3 px-4 text-center">
+            <input type="checkbox" ${p.active ? 'checked' : ''} onchange="toggleProductActive(${p.id}, this.checked)"
+                   class="w-4 h-4 accent-sky-600 cursor-pointer">
+          </td>
+          <td class="py-3 px-4 text-center">
+            <div class="flex justify-center gap-1.5">
+              <button type="button" onclick="openProductModal(${p.id})" class="p-2 rounded-lg text-slate-500 hover:text-sky-700 hover:bg-sky-50" title="Editar">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              <button type="button" onclick="deleteProduct(${p.id})" class="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50" title="Eliminar">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderCategoriesGrid() {
+      const grid = document.getElementById('categories-grid');
+      if (CATEGORIES.length === 0) {
+        grid.innerHTML = `<div class="col-span-full bg-white p-8 rounded-2xl text-center text-slate-400 border border-slate-200">No hay rubros creados.</div>`;
+        return;
+      }
+      grid.innerHTML = CATEGORIES.map(c => {
+        const count = PRODUCTS.filter(p => p.category_id === c.id).length;
+        return `
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between gap-4">
+            <div>
+              <div class="flex justify-between items-start gap-2">
+                <h3 class="font-bold text-base text-slate-900">${escapeHtml(c.name)}</h3>
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600">${count} platos</span>
+              </div>
+              <p class="text-xs text-slate-500 mt-1.5">${escapeHtml(c.description || 'Sin descripción')}</p>
+            </div>
+            <div class="pt-3 border-t border-slate-100 flex justify-between items-center">
+              <span class="text-xs font-semibold ${c.active ? 'text-emerald-600' : 'text-slate-400'}">
+                <i class="fa-solid fa-circle text-[8px] mr-1"></i> ${c.active ? 'Activo' : 'Oculto'}
+              </span>
+              <div class="flex gap-1.5">
+                <button type="button" onclick="openCategoryModal(${c.id})" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-100">Editar</button>
+                <button type="button" onclick="deleteCategory(${c.id})" class="px-3 py-1.5 rounded-lg text-xs font-bold text-red-600 hover:bg-red-50">Eliminar</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ---- PRODUCTOS CRUD ----
+    function openProductModal(id = null) {
+      if (CATEGORIES.length === 0) {
+        alert('Primero crea al menos un rubro o categoría.');
+        switchTab('rubros');
+        return;
+      }
+      if (id) {
+        const p = PRODUCTS.find(x => x.id === id);
+        if (!p) return;
+        document.getElementById('modal-prod-title').textContent = 'Editar Producto';
+        document.getElementById('prod-id').value = p.id;
+        document.getElementById('prod-cat').value = p.category_id;
+        document.getElementById('prod-name').value = p.name;
+        document.getElementById('prod-price').value = p.price;
+        document.getElementById('prod-desc').value = p.description || '';
+      } else {
+        document.getElementById('modal-prod-title').textContent = 'Agregar Producto';
+        document.getElementById('prod-id').value = '';
+        document.getElementById('prod-name').value = '';
+        document.getElementById('prod-price').value = '';
+        document.getElementById('prod-desc').value = '';
+      }
+      document.getElementById('modal-product').classList.remove('hidden');
+    }
+
+    async function saveProductForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('prod-id').value;
+      const payload = {
+        category_id: document.getElementById('prod-cat').value,
+        name: document.getElementById('prod-name').value,
+        price: document.getElementById('prod-price').value,
+        description: document.getElementById('prod-desc').value
+      };
+      const url = id ? `/api/products/${id}` : '/api/products';
+      const method = id ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        PRODUCTS = data.products;
+        syncCategorySelects();
+        renderProductsTable();
+        renderCategoriesGrid();
+        closeModal('modal-product');
+        showToast(id ? 'Producto actualizado' : 'Producto agregado al menú');
+      } else {
+        alert(data.error || 'Error al guardar');
+      }
+    }
+
+    async function quickUpdatePrice(id, val) {
+      const res = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ price: parseFloat(val) || 0 })
+      });
+      const data = await res.json();
+      if (data.success) {
+        PRODUCTS = data.products;
+        showToast('Precio actualizado');
+      }
+    }
+
+    async function toggleProductActive(id, checked) {
+      const res = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: checked ? 1 : 0 })
+      });
+      const data = await res.json();
+      if (data.success) {
+        PRODUCTS = data.products;
+        showToast(checked ? 'Producto visible' : 'Producto ocultado');
+      }
+    }
+
+    async function deleteProduct(id) {
+      if (!confirm('¿Eliminar este producto del menú?')) return;
+      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        PRODUCTS = data.products;
+        syncCategorySelects();
+        renderProductsTable();
+        renderCategoriesGrid();
+        showToast('Producto eliminado');
+      }
+    }
+
+    // ---- RUBROS CRUD ----
+    function openCategoryModal(id = null) {
+      if (id) {
+        const c = CATEGORIES.find(x => x.id === id);
+        if (!c) return;
+        document.getElementById('modal-cat-title').textContent = 'Editar Rubro';
+        document.getElementById('cat-id').value = c.id;
+        document.getElementById('cat-name').value = c.name;
+        document.getElementById('cat-desc').value = c.description || '';
+      } else {
+        document.getElementById('modal-cat-title').textContent = 'Nuevo Rubro';
+        document.getElementById('cat-id').value = '';
+        document.getElementById('cat-name').value = '';
+        document.getElementById('cat-desc').value = '';
+      }
+      document.getElementById('modal-category').classList.remove('hidden');
+    }
+
+    async function saveCategoryForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('cat-id').value;
+      const payload = {
+        name: document.getElementById('cat-name').value,
+        description: document.getElementById('cat-desc').value
+      };
+      const url = id ? `/api/categories/${id}` : '/api/categories';
+      const method = id ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        CATEGORIES = data.categories;
+        syncCategorySelects();
+        renderCategoriesGrid();
+        renderProductsTable();
+        closeModal('modal-category');
+        showToast(id ? 'Rubro actualizado' : 'Nuevo rubro creado');
+      } else {
+        alert(data.error || 'Error al guardar');
+      }
+    }
+
+    async function deleteCategory(id) {
+      if (!confirm('¿Eliminar este rubro y TODOS sus productos asociados?')) return;
+      const res = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        CATEGORIES = data.categories;
+        PRODUCTS = data.products;
+        syncCategorySelects();
+        renderCategoriesGrid();
+        renderProductsTable();
+        showToast('Rubro eliminado');
+      }
+    }
+
+    // ---- CONFIGURACIÓN Y LOGO/QR ----
+    async function saveSettings(e) {
+      e.preventDefault();
+      const formData = new FormData(document.getElementById('settings-form'));
+      const res = await fetch('/api/settings', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Configuración guardada correctamente');
+        setTimeout(() => window.location.reload(), 900);
+      }
+    }
+
+    syncCategorySelects();
+    renderProductsTable();
+    renderCategoriesGrid();
+  </script>
+</body>
+</html>
